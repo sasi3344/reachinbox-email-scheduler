@@ -12,17 +12,23 @@ import { errorHandler } from './middleware/error.middleware';
 export function createApp(): express.Application {
   const app = express();
 
+  // 0. Trust proxy (Required for Railway / Vercel / Render cloud load balancers)
+  app.set('trust proxy', 1);
+
   // 1. Security HTTP Headers
   app.use(
     helmet({
-      contentSecurityPolicy: false, // Allows flexible UI assets in development
+      contentSecurityPolicy: false,
     })
   );
 
-  // 2. CORS configuration
+  // 2. CORS configuration (Allow all origins with credentials for cloud deployments)
   app.use(
     cors({
-      origin: [env.FRONTEND_URL, 'http://localhost:5173', 'http://127.0.0.1:5173'],
+      origin: (origin, callback) => {
+        // Allow requests with no origin (like mobile apps, curl, server-to-server) or any origin
+        callback(null, true);
+      },
       credentials: true,
       methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
       allowedHeaders: ['Content-Type', 'Authorization'],
@@ -42,7 +48,7 @@ export function createApp(): express.Application {
       cookie: {
         secure: env.NODE_ENV === 'production',
         httpOnly: true,
-        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+        maxAge: 7 * 24 * 60 * 60 * 1000,
         sameSite: env.NODE_ENV === 'production' ? 'none' : 'lax',
       },
     })
@@ -53,10 +59,20 @@ export function createApp(): express.Application {
   app.use(passport.initialize());
   app.use(passport.session());
 
-  // 6. Public API rate limiter
+  // 6. Root health check endpoint for cloud load balancers
+  app.get('/', (_req, res) => {
+    res.status(200).json({
+      status: 'ok',
+      service: 'ReachInbox Email Scheduler API',
+      version: '1.0.0',
+      timestamp: new Date().toISOString(),
+    });
+  });
+
+  // 7. Public API rate limiter
   const publicApiLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 500, // Limit each IP to 500 requests per window
+    windowMs: 15 * 60 * 1000,
+    max: 1000,
     standardHeaders: true,
     legacyHeaders: false,
     message: {
@@ -66,10 +82,10 @@ export function createApp(): express.Application {
   });
   app.use('/api', publicApiLimiter);
 
-  // 7. Mount API Routes
+  // 8. Mount API Routes
   app.use('/api', apiRoutes);
 
-  // 8. 404 Route Catch-all
+  // 9. 404 Route Catch-all
   app.use((req, res) => {
     res.status(404).json({
       success: false,
@@ -77,7 +93,7 @@ export function createApp(): express.Application {
     });
   });
 
-  // 9. Centralized Error Middleware
+  // 10. Centralized Error Middleware
   app.use(errorHandler);
 
   return app;
