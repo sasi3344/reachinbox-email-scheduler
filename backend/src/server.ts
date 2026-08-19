@@ -27,9 +27,10 @@ async function bootstrap() {
   const app = createApp();
   const server = http.createServer(app);
 
-  server.listen(env.PORT, () => {
-    logger.info(`🚀 ReachInbox API Server running at http://localhost:${env.PORT}`);
-    logger.info(`📡 Health Endpoint: http://localhost:${env.PORT}/api/health`);
+  const port = Number(process.env.PORT) || env.PORT || 5000;
+  server.listen(port, '0.0.0.0', () => {
+    logger.info(`🚀 ReachInbox API Server running at http://0.0.0.0:${port}`);
+    logger.info(`📡 Health Endpoint: http://localhost:${port}/api/health`);
     logger.info(`🌐 Frontend Expected at: ${env.FRONTEND_URL}`);
   });
 
