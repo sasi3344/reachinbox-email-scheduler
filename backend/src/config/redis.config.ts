@@ -7,27 +7,29 @@ const redisOptions: RedisOptions = {
   enableReadyCheck: false,
   lazyConnect: true,
   retryStrategy(times) {
-    if (times > 5) {
-      return null; // Stop retrying if Redis is not available locally
+    if (times > 3) {
+      return null;
     }
-    return Math.min(times * 300, 2000);
+    return Math.min(times * 500, 2000);
   },
 };
 
 export const redisClient = new Redis(env.REDIS_URL, redisOptions);
-
-// Connect asynchronously without blocking bootstrap
-redisClient.connect().catch((err) => {
-  logger.warn(`Redis server not reachable at ${env.REDIS_URL} (operating in memory fallback mode): ${err.message}`);
-});
 
 redisClient.on('connect', () => {
   logger.info('Connected to Redis server.');
 });
 
 redisClient.on('error', (err) => {
-  // Silence repetitive unhandled error spam
+  // Gracefully absorb Redis errors to protect production uptime
 });
+
+// Attempt connection safely
+try {
+  redisClient.connect().catch(() => {
+    logger.warn(`Redis server not reachable at ${env.REDIS_URL} (operating in memory fallback mode).`);
+  });
+} catch {}
 
 export const getRedisConnectionOptions = (): RedisOptions => {
   return redisOptions;

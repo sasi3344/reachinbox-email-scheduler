@@ -6,6 +6,15 @@ import { disconnectRedis } from './config/redis.config';
 import { startEmailWorker, stopEmailWorker } from './workers/email.worker';
 import { logger } from './utils/logger';
 
+// Global Crash Guards: Prevent Node.js from ever crashing in production
+process.on('uncaughtException', (err) => {
+  logger.error(`[Guard] Uncaught Exception intercepted: ${err.message}`);
+});
+
+process.on('unhandledRejection', (reason: any) => {
+  logger.error(`[Guard] Unhandled Rejection intercepted: ${reason?.message || reason}`);
+});
+
 async function bootstrap() {
   logger.info('Initializing ReachInbox Email Scheduler Backend...');
 
@@ -61,4 +70,6 @@ async function bootstrap() {
   process.on('SIGINT', () => shutdown('SIGINT'));
 }
 
-bootstrap();
+bootstrap().catch((err) => {
+  logger.error(`Bootstrap fatal error caught: ${err.message}`);
+});
