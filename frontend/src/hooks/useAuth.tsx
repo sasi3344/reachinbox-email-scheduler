@@ -34,7 +34,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const loginWithGoogle = () => {
-    const backendUrl = import.meta.env.VITE_API_URL || '/api';
+    const backendUrl =
+      import.meta.env.VITE_API_URL ||
+      (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+        ? '/api'
+        : 'https://reachinbox-email-scheduler-production-d5fc.up.railway.app/api');
     window.location.href = `${backendUrl}/auth/google`;
   };
 
