@@ -1,0 +1,96 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum EmailStatus {
+  SCHEDULED
+  PROCESSING
+  SENT
+  FAILED
+}
+
+model User {
+  id             String          @id @default(uuid())
+  googleId       String          @unique
+  name           String
+  email          String          @unique
+  avatar         String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  campaigns      EmailCampaign[]
+  emails         Email[]
+  senderAccounts SenderAccount[]
+
+  @@map("users")
+}
+
+model SenderAccount {
+  id           String   @id @default(uuid())
+  userId       String
+  email        String
+  smtpHost     String
+  smtpPort     Int
+  smtpUser     String
+  smtpPassword String
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("sender_accounts")
+}
+
+model EmailCampaign {
+  id                 String   @id @default(uuid())
+  userId             String
+  subject            String
+  body               String
+  startTime          DateTime
+  delayBetweenEmails Int
+  hourlyLimit        Int
+  totalRecipients    Int
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  emails             Email[]
+
+  @@index([userId])
+  @@map("email_campaigns")
+}
+
+model Email {
+  id           String      @id @default(uuid())
+  campaignId   String
+  userId       String
+  recipient    String
+  subject      String
+  body         String
+  scheduledAt  DateTime
+  sentAt       DateTime?
+  status       EmailStatus @default(SCHEDULED)
+  attempts     Int         @default(0)
+  errorMessage String?
+  jobId        String?     @unique
+  senderEmail  String?
+  previewUrl   String?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  campaign     EmailCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([campaignId])
+  @@index([status])
+  @@index([scheduledAt])
+  @@map("emails")
+}
